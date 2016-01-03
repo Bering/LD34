@@ -1,0 +1,181 @@
+﻿using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.Events;
+using System.Collections;
+
+public class GameController : MonoBehaviour {
+
+	static protected GameController instance;
+
+	[SerializeField] protected GameObject AdeninePrefab;
+	[SerializeField] protected GameObject CytosinePrefab;
+	[SerializeField] protected GameObject GuaninePrefab;
+	[SerializeField] protected GameObject ThyminePrefab;
+
+	[SerializeField] protected Sequence[] Sequences;
+
+	[SerializeField] protected Enzyme LeftEnzyme;
+	[SerializeField] protected Enzyme RightEnzyme;
+
+	[SerializeField] protected Transform NucleobaseToComplementMarker;
+
+	public float cycleMovementDuration;
+	public int scoreBonus;
+	public int scoreMalus;
+
+	public UnityEvent GamePausedEvent;
+	public UnityEvent FirstTurnStartedEvent;
+	public UnityEvent GameOverEvent;
+
+	public UnityEvent NucleobasesReadyEvent;
+	public UnityEvent EnzymesReadyEvent;
+	public UnityEvent NextTurnEvent;
+
+	public AudioSource audioSource;
+	public AudioClip scoreBonusSound;
+	public AudioClip scoreMalusSound;
+	public AudioClip pluckSound;
+	public AudioClip fuseSound;
+
+
+	static public GameController GetInstance()
+	{
+		if (instance != null) return instance;
+
+		throw new System.Exception("Something tried to get the GameController instance before it was instanciated. Check the script load order.");
+	}
+
+
+	void Awake()
+	{
+		instance = this;
+	}
+
+
+	void Start()
+	{
+		InputHandler.GetInstance().LeftButtonEvent.AddListener (GetInstance().OnLeftButtonPressed);
+		InputHandler.GetInstance().RightButtonEvent.AddListener (GetInstance().OnRightButtonPressed);
+	}
+
+
+	public void QuitGame()
+	{
+		Application.Quit();
+	}
+
+
+	public void PauseGame()
+	{
+		GamePausedEvent.Invoke();
+	}
+
+
+	public void StartGame()
+	{
+		FirstTurnStartedEvent.Invoke ();
+		StartCoroutine (CycleTurn ());
+	}
+
+
+	public void NextTurn()
+	{
+		NextTurnEvent.Invoke ();
+		StartCoroutine (CycleTurn ());
+	}
+
+
+	protected IEnumerator CycleTurn()
+	{
+		Debug.Log ("Preparing Turn");
+
+		foreach (Sequence s in Sequences) {
+			if (!s.isReadyForTurnStart)
+				yield return new WaitForSeconds (0.25f);
+		}
+
+		while (!Nucleobase_View.allAtDestination())
+			yield return new WaitForSeconds (0.25f);
+
+		Debug.Log ("Nucleobases are ready");
+		NucleobasesReadyEvent.Invoke ();
+
+		while (!LeftEnzyme.isReadyForTurnStart)
+			yield return new WaitForSeconds (0.25f);
+
+		while (!RightEnzyme.isReadyForTurnStart)
+			yield return new WaitForSeconds (0.25f);
+
+		Debug.Log ("Enzymes are ready");
+		EnzymesReadyEvent.Invoke ();
+	}
+
+
+	void OnLeftButtonPressed()
+	{
+	}
+
+
+	void OnRightButtonPressed()
+	{
+	}
+
+
+	public Nucleobase_View SpawnNucleobaseFromType(Nucleobase.types type)
+	{
+		switch (type) {
+		case Nucleobase.types.A: return Instantiate(AdeninePrefab).GetComponent<Nucleobase_View>();
+		case Nucleobase.types.C: return Instantiate(CytosinePrefab).GetComponent<Nucleobase_View>();
+		case Nucleobase.types.G: return Instantiate(GuaninePrefab).GetComponent<Nucleobase_View>();
+		case Nucleobase.types.T: return Instantiate(ThyminePrefab).GetComponent<Nucleobase_View>();
+		default:
+			throw new System.Exception ("Invalid Nucleobase type!");
+		}
+	}
+	
+	
+	public Nucleobase_View SpawnRandomNucleobase()
+	{
+		return SpawnNucleobaseFromType( (Nucleobase.types) Random.Range (0, 4));
+	}
+
+
+	public bool isReadyForTurnStart()
+	{
+		foreach (Sequence s in Sequences) {
+			if (!s.isReadyForTurnStart)
+				return false;
+		}
+
+		if (!Nucleobase_View.allAtDestination())
+			return false;
+
+		if (!LeftEnzyme.isReadyForTurnStart)
+			return false;
+
+		if (!RightEnzyme.isReadyForTurnStart)
+			return false;
+
+		return true;
+	}
+	
+
+	public Nucleobase_View GetNucleobaseToComplement()
+	{
+		return Nucleobase_View.GetNucleobaseAtPosition (NucleobaseToComplementMarker.position);
+	}
+
+
+	public void Score(bool goodOrBad) {
+
+		if (goodOrBad) {
+			//scoreBonusSound.Play ();
+			ScoreBoard.instance.IncrementScore (scoreBonus);
+		} else {
+			//scoreMalusSound.Play ();
+			ScoreBoard.instance.IncrementScore (scoreMalus);
+		}
+
+	}
+
+}
