@@ -1,8 +1,9 @@
-# LD34
+# LD34 - DNA Polymerase
 Source for my Ludum Dare #34 compo entry: DNA Polymerase
 
 http://ludumdare.com/compo/ludum-dare-34/?action=preview&uid=31782
 
+![DNA Polymerase](https://raw.githubusercontent.com/Bering/LD34/master/Screenshots/COMPLETE.png)
 
 ## Build Instructions
 This project was made with Unity 5.3
