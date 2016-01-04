@@ -33,6 +33,8 @@ public class InputHandler : MonoBehaviour {
 	{
 		gc = GameController.GetInstance();
 		gc.EnzymesReadyEvent.AddListener (AcceptInput);
+		gc.GamePausedEvent.AddListener (RejectInput);
+		gc.GameResumedEvent.AddListener (RejectInput);
 	}
 
 
@@ -42,8 +44,18 @@ public class InputHandler : MonoBehaviour {
 	}
 
 
+	void RejectInput()
+	{
+		acceptInput = false;
+	}
+
+
 	void Update()
 	{
+		#if UNITY_ANDROID
+		return;
+		#endif
+
 		if (Input.GetKeyDown(KeyCode.Escape)) {
 			gc.PauseGame ();
 			return;

@@ -1,5 +1,5 @@
 ﻿using UnityEngine;
-using System.Collections;
+using System.Collections.Generic;
 
 public class Sequence : MonoBehaviour
 {
@@ -9,6 +9,7 @@ public class Sequence : MonoBehaviour
 	[SerializeField] bool complement;
 
 	protected Vector3 movementDirection;
+	protected List<Nucleobase.types> nucleobaseTypesToSpawn;
 
 	public bool isReadyForTurnStart;
 
@@ -16,6 +17,7 @@ public class Sequence : MonoBehaviour
 	void Awake()
 	{
 		movementDirection = Vector3.Normalize (ActionMarker.position - SpawnMarker.position);
+		nucleobaseTypesToSpawn = new List<Nucleobase.types>();
 		isReadyForTurnStart = false;
 	}
 
@@ -46,7 +48,7 @@ public class Sequence : MonoBehaviour
 		int failSafeCounter = 0; // to prevent infinite loops
 
 		while(true) {
-			newRandomNucleobase = gc.SpawnRandomNucleobase ();
+			newRandomNucleobase = SpawnRandomNucleobase ();
 			SetupNewNucleobase (newRandomNucleobase);
 			newRandomNucleobase.transform.position = pos;
 
@@ -73,11 +75,30 @@ public class Sequence : MonoBehaviour
 	}
 
 
+	public Nucleobase_View SpawnRandomNucleobase ()
+	{
+		Nucleobase_View newRandomNucleobase = null;
+
+		if (nucleobaseTypesToSpawn.Count == 0) {
+			nucleobaseTypesToSpawn.Add (Nucleobase.types.A);
+			nucleobaseTypesToSpawn.Add (Nucleobase.types.C);
+			nucleobaseTypesToSpawn.Add (Nucleobase.types.G);
+			nucleobaseTypesToSpawn.Add (Nucleobase.types.T);
+		}
+
+		int index = Random.Range (0, nucleobaseTypesToSpawn.Count);
+		newRandomNucleobase = GameController.GetInstance ().SpawnNucleobaseFromType (nucleobaseTypesToSpawn[index]);
+		nucleobaseTypesToSpawn.RemoveAt (index);
+		return newRandomNucleobase;
+	}
+
+
 	public void NextTurn()
 	{
 		isReadyForTurnStart = false;
 
-		Nucleobase_View newRandomNucleobase = GameController.GetInstance ().SpawnRandomNucleobase ();
+
+		Nucleobase_View newRandomNucleobase = SpawnRandomNucleobase ();
 		SetupNewNucleobase (newRandomNucleobase);
 
 		if (complement) {

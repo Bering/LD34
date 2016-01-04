@@ -4,11 +4,13 @@ using System.Collections.Generic;
 public class PluckablesList : MonoBehaviour {
 
 
-	public List<Nucleobase_View> list;
+	[SerializeField] protected List<Nucleobase_View> list; // Serialized for debugging
+	[SerializeField] protected List<Nucleobase_View> availableForPlucking;
 
 
 	void Awake() {
 		list = new List<Nucleobase_View>();
+		availableForPlucking= new List<Nucleobase_View>();
 	}
 
 
@@ -24,26 +26,32 @@ public class PluckablesList : MonoBehaviour {
 	}
 
 
+	public void ResetAvailables()
+	{
+		availableForPlucking = new List<Nucleobase_View>(list);
+	}
+
+
 	public Nucleobase_View GetNucleobaseOfType(Nucleobase.types type)
 	{
-		foreach (Nucleobase_View nv in list) {
-			if (nv.getNucleobaseType () == type)
+		foreach (Nucleobase_View nv in availableForPlucking) {
+			if (nv.getNucleobaseType () == type) {
+				availableForPlucking.Remove(nv);
 				return nv;
+			}
 		}
 
 		return null;
 	}
 
+
 	public Nucleobase_View GetRandomNucleobase()
 	{
-		if (list.Count == 0) {
-			return null;
-		}
+		int index = Random.Range (0, availableForPlucking.Count);
 
-		int index = Random.Range (0, list.Count);
-
-		foreach (Nucleobase_View nv in list) {
+		foreach (Nucleobase_View nv in availableForPlucking) {
 			if (index == 0) {
+				availableForPlucking.Remove(nv);
 				return nv;
 			}
 			index--;
@@ -51,6 +59,5 @@ public class PluckablesList : MonoBehaviour {
 
 		return null;
 	}
-	
 
 }

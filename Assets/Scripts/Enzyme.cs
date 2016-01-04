@@ -1,54 +1,52 @@
 ﻿using UnityEngine;
+using UnityEngine.EventSystems;
 using System.Collections;
 
-public class Enzyme : MonoBehaviour
+public class Enzyme : MonoBehaviour, IPointerClickHandler
 {
 	[SerializeField] protected PluckablesList Pluckables;
 	[SerializeField] protected Transform FusingMarker;
 	[SerializeField] protected bool isLeft;
 
+	protected InputHandler inputHandler;
 	protected GameController gameController;
 	protected SmoothMovement movementController;
+	protected AudioSource audioSource;
 
 	public bool isReadyForTurnStart;
 
-	protected Nucleobase_View NucleobaseToComplement;
-	protected Nucleobase_View NucleobaseToPluck;
+	protected Nucleobase_View nucleobaseToPluck;
 
 
 	void Start()
 	{
+		inputHandler = InputHandler.GetInstance ();
 		gameController = GameController.GetInstance ();
 		movementController = GetComponent<SmoothMovement> ();
+		audioSource = GetComponent<AudioSource>();
 
-		gameController.NucleobasesReadyEvent.AddListener (OnNucleobasesReady);
 		if (isLeft) {
-			InputHandler.GetInstance ().LeftButtonEvent.AddListener (OnButtonPressed);
+			inputHandler.LeftButtonEvent.AddListener (OnButtonPressed);
 		} else {
-			InputHandler.GetInstance().RightButtonEvent.AddListener (OnButtonPressed);
+			inputHandler.RightButtonEvent.AddListener (OnButtonPressed);
 		}
 	}
 
 
-	public void OnNucleobasesReady()
+	public void SelectNucleobase(Nucleobase_View nucleobaseToPluck)
 	{
-		NucleobaseToComplement = gameController.GetNucleobaseToComplement ();
-		NucleobaseToPluck = Pluckables.GetNucleobaseOfType (NucleobaseToComplement.getNucleobaseComplementType ());
-
-		if (NucleobaseToPluck == null) {
-			Debug.Log ("No appropriate Nucleobase found!");
-			NucleobaseToPluck = Pluckables.GetRandomNucleobase();
-		}
-
-		if (NucleobaseToPluck == null) {
-			Debug.LogError ("Out of Nucleobases!");
-			gameController.GameOverEvent.Invoke ();
-			return;
-		}
-
+		this.nucleobaseToPluck = nucleobaseToPluck;
 		isReadyForTurnStart = false;
-		movementController.GoTo(NucleobaseToPluck.transform, gameController.cycleMovementDuration);
-		StartCoroutine (WaitForCompleteStop ());
+		movementController.GoTo(nucleobaseToPluck.transform, gameController.cycleMovementDuration);
+		StartCoroutine(SetReadyWhenDestinationReached ());
+	}
+
+
+	protected IEnumerator SetReadyWhenDestinationReached()
+	{
+		yield return WaitForCompleteStop ();
+
+		isReadyForTurnStart = true;
 	}
 
 
@@ -57,14 +55,12 @@ public class Enzyme : MonoBehaviour
 		while (!movementController.isAtDestination) {
 			yield return new WaitForSeconds (0.25f);
 		}
-
-		isReadyForTurnStart = true;
 	}
 
 
 	public void OnButtonPressed()
 	{
-		StartCoroutine (Fuse ());
+		StartCoroutine (Fuse());
 	}
 
 
@@ -72,32 +68,39 @@ public class Enzyme : MonoBehaviour
 	{
 		isReadyForTurnStart = false;
 
-		gameController.audioSource.clip = gameController.pluckSound;
-		gameController.audioSource.Play ();
+		// Pluck
+		nucleobaseToPluck.transform.parent = transform;
+		audioSource.clip = gameController.pluckSound;
+		audioSource.Play ();
 
-		NucleobaseToPluck.gameObject.transform.parent = transform;
+		// Bring to fusion marker
 		movementController.GoTo(FusingMarker.transform, gameController.cycleMovementDuration);
 		yield return StartCoroutine (WaitForCompleteStop ());
 
-		gameController.audioSource.clip = gameController.fuseSound;
-		gameController.audioSource.Play ();
+		// Fuse
+		nucleobaseToPluck.transform.parent = FusingMarker.parent;
+		audioSource.clip = gameController.fuseSound;
+		audioSource.Play ();
 
-		NucleobaseToPluck.Fuse (FusingMarker.parent);
-		yield return StartCoroutine (WaitForCompleteStop ());
-
-
-		if (NucleobaseToPluck.getNucleobaseType() == NucleobaseToComplement.getNucleobaseComplementType ()) {
-			gameController.Score (true);
-		} else {
-			gameController.Score (false);
-		}
-
-
-		isReadyForTurnStart = true;
+		// Little delay for better look
+		yield return new WaitForSeconds (0.5f);
 
 		gameController.NextTurn ();
 	}
 
+
+	public void OnPointerClick(PointerEventData eventData)
+	{
+		#if UNITY_ANDROID
+		if (isLeft) {
+			inputHandler.LeftButtonEvent.Invoke();
+		} else{
+			inputHandler.RightButtonEvent.Invoke();
+		}
+		#endif
+
+		eventData.Use();
+	}
 
 }
 

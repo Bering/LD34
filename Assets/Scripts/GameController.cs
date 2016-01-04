@@ -16,6 +16,7 @@ public class GameController : MonoBehaviour {
 
 	[SerializeField] protected Enzyme LeftEnzyme;
 	[SerializeField] protected Enzyme RightEnzyme;
+	[SerializeField] protected PluckablesList Pluckables;
 
 	[SerializeField] protected Transform NucleobaseToComplementMarker;
 
@@ -24,9 +25,10 @@ public class GameController : MonoBehaviour {
 	public int scoreMalus;
 
 	public UnityEvent GamePausedEvent;
-	public UnityEvent FirstTurnStartedEvent;
+	public UnityEvent GameResumedEvent;
 	public UnityEvent GameOverEvent;
 
+	public UnityEvent FirstTurnStartedEvent;
 	public UnityEvent NucleobasesReadyEvent;
 	public UnityEvent EnzymesReadyEvent;
 	public UnityEvent NextTurnEvent;
@@ -36,6 +38,10 @@ public class GameController : MonoBehaviour {
 	public AudioClip scoreMalusSound;
 	public AudioClip pluckSound;
 	public AudioClip fuseSound;
+
+
+	protected bool leftHasGoodAnswer;
+	protected bool rightHasGoodAnswer;
 
 
 	static public GameController GetInstance()
@@ -56,18 +62,31 @@ public class GameController : MonoBehaviour {
 	{
 		InputHandler.GetInstance().LeftButtonEvent.AddListener (GetInstance().OnLeftButtonPressed);
 		InputHandler.GetInstance().RightButtonEvent.AddListener (GetInstance().OnRightButtonPressed);
+		NucleobasesReadyEvent.AddListener (EnzymesAI);
 	}
 
 
 	public void QuitGame()
 	{
+		#if UNITY_EDITOR
+		UnityEditor.EditorApplication.isPlaying = false;
+		#else
 		Application.Quit();
+		#endif
 	}
 
 
 	public void PauseGame()
 	{
 		GamePausedEvent.Invoke();
+		Time.timeScale = 0;
+	}
+
+
+	public void ResumeGame()
+	{
+		GameResumedEvent.Invoke();
+		Time.timeScale = 1;
 	}
 
 
@@ -84,6 +103,12 @@ public class GameController : MonoBehaviour {
 		StartCoroutine (CycleTurn ());
 	}
 
+
+	public void GameOver()
+	{
+		GameOverEvent.Invoke ();
+		Time.timeScale = 0;
+	}
 
 	protected IEnumerator CycleTurn()
 	{
@@ -113,11 +138,13 @@ public class GameController : MonoBehaviour {
 
 	void OnLeftButtonPressed()
 	{
+		Score (leftHasGoodAnswer);
 	}
 
 
 	void OnRightButtonPressed()
 	{
+		Score (rightHasGoodAnswer);
 	}
 
 
@@ -134,12 +161,6 @@ public class GameController : MonoBehaviour {
 	}
 	
 	
-	public Nucleobase_View SpawnRandomNucleobase()
-	{
-		return SpawnNucleobaseFromType( (Nucleobase.types) Random.Range (0, 4));
-	}
-
-
 	public bool isReadyForTurnStart()
 	{
 		foreach (Sequence s in Sequences) {
@@ -166,6 +187,60 @@ public class GameController : MonoBehaviour {
 	}
 
 
+	[ContextMenu("Select Nucleobases")]
+	public void EnzymesAI()
+	{
+		Nucleobase_View NucleobaseToComplement = Nucleobase_View.GetNucleobaseAtPosition (NucleobaseToComplementMarker.position);
+		Nucleobase.types goodType = NucleobaseToComplement.getNucleobaseComplementType();
+
+		Nucleobase_View NucleobaseToPluck_1 = null;
+		Nucleobase_View NucleobaseToPluck_2 = null;
+
+		Pluckables.ResetAvailables();
+
+		if (Random.Range (0, 2) == 0) {
+			NucleobaseToPluck_1 = Pluckables.GetNucleobaseOfType (goodType);
+			NucleobaseToPluck_2 = Pluckables.GetRandomNucleobase ();
+		} else {
+			NucleobaseToPluck_1 = Pluckables.GetRandomNucleobase ();
+			NucleobaseToPluck_2 = Pluckables.GetNucleobaseOfType (goodType);
+		}
+
+
+		if (NucleobaseToPluck_1 == null) {
+			Debug.Log ("First pluckable is null! Trying a random one.");
+			NucleobaseToPluck_1 = Pluckables.GetRandomNucleobase();
+		}
+
+		if (NucleobaseToPluck_2 == null) {
+			Debug.Log ("Second pluckable is null! Trying a random one.");
+			NucleobaseToPluck_2 = Pluckables.GetRandomNucleobase();
+		}
+			
+		if (NucleobaseToPluck_1 == null || NucleobaseToPluck_2 == null) {
+			Debug.LogError ("Out of Nucleobases to pluck !?!?");
+			return;
+		}
+
+
+
+		if (NucleobaseToPluck_1.transform.position.x < NucleobaseToPluck_2.transform.position.x) {
+			LeftEnzyme.SelectNucleobase (NucleobaseToPluck_1);
+			leftHasGoodAnswer = (NucleobaseToPluck_1.getNucleobaseType() == goodType);
+
+			RightEnzyme.SelectNucleobase (NucleobaseToPluck_2);
+			rightHasGoodAnswer = (NucleobaseToPluck_2.getNucleobaseType() == goodType);
+		} else {
+			LeftEnzyme.SelectNucleobase (NucleobaseToPluck_2);
+			leftHasGoodAnswer = (NucleobaseToPluck_2.getNucleobaseType() == goodType);
+
+			RightEnzyme.SelectNucleobase (NucleobaseToPluck_1);
+			rightHasGoodAnswer = (NucleobaseToPluck_1.getNucleobaseType() == goodType);
+		}
+
+	}
+
+
 	public void Score(bool goodOrBad) {
 
 		if (goodOrBad) {
@@ -173,7 +248,9 @@ public class GameController : MonoBehaviour {
 			ScoreBoard.instance.IncrementScore (scoreBonus);
 		} else {
 			//scoreMalusSound.Play ();
-			ScoreBoard.instance.IncrementScore (scoreMalus);
+			if (ScoreBoard.instance.IncrementScore (scoreMalus) < 0) {
+				GameOver();
+			};
 		}
 
 	}

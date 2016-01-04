@@ -27,7 +27,7 @@ public class ScoreBoard : MonoBehaviour
 
 	protected void ResetScore()
 	{
-		SetScore(0);
+		SetScore(200);
 	}
 
 

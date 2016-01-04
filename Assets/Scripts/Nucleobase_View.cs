@@ -31,6 +31,8 @@ public class Nucleobase_View : MonoBehaviour
 	void Start()
 	{
 		uiLabel.text = this.nucleobaseModel.type.ToString ();
+
+		// TODO: Fix this!
 		uiLabel.rectTransform.Rotate(0, 0, transform.rotation.eulerAngles.z * -1.0f); // Rotate the text so it's upright
 
 		GameController.GetInstance ().NextTurnEvent.AddListener(OnNextCycle);
@@ -86,13 +88,6 @@ public class Nucleobase_View : MonoBehaviour
 	public Nucleobase.types getNucleobaseComplementType()
 	{
 		return nucleobaseModel.pairsWith;
-	}
-
-
-	public void Fuse(Transform newParent)
-	{
-		transform.parent = newParent;
-		//cyclePositionIncrement.x *= -1; // Why not !? I suspect that finding why will also fix the rotated labels up in the input sequence
 	}
 
 
